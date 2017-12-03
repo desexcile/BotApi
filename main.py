@@ -9,6 +9,7 @@ import re
 from MyToken import token
 from datetime import datetime
 from telebot import util
+from tinydb import TinyDB, Query, where
 
 bot = telebot.TeleBot(token)
 # Получаем инфо о боте. Таким образом мы видим, что скрипт запустился и связался с Ботом
@@ -21,6 +22,7 @@ pattern_show_msg = re.compile('/show_[A-Za-z].*_[0-9]*')
 pattern_sub_one = re.compile('<[/A-Za-z0-9]*>')
 pattern_sub_two = re.compile(r'\n *')
 pattern_sub_three = re.compile('\n\n\n')
+pattern_callback = re.compile('add::.*')
 # Ссылка на сайт, откуда грузятся стихи
 site_url = "http://www.easadov.ru/"
 # Списки букв для сопоставления и слов
@@ -41,6 +43,8 @@ dict_of_theme_links = {'Любовь': 'love',
                        'Миниатюра 1': 'mini',
                        'Миниатюра 2': 'mini_II',
                        'Миниатюра 3': 'mini_III'}
+db = TinyDB('asadov_bot_db.json')
+query = Query()
 
 
 # Функция для записи в лог обращений пользователей
@@ -53,6 +57,50 @@ def log(message, answer):
                                                                      message.text))
     print("Ответ - " + answer)
     print("--------")
+
+
+def create_id_table(client_id):
+    db.table(client_id)
+
+
+def add_info_to_table(client_id, name, cmd):
+    table = db.table(client_id)
+    tt = table.search(where('link') == cmd)
+    tx = []
+    if tt == tx:
+        table.insert({'name': name, 'link': cmd})
+        bot.send_message(client_id, 'Добавил ' + name + ' ' + cmd)
+    else:
+        bot.send_message(client_id, 'Этот стих уже добавлен: ' + name)
+
+
+def show_fav(client_id):
+    table = db.table(client_id)
+    p = 0
+    text = ''
+    for x in table:
+        p = p + 1
+        text = text + str(p) + '.' + x['name'] + ' ' + x['link'] + '\n'
+    if len(text) == 0:
+        bot.send_message(client_id, 'Вы еще не сохраняли стихи.')
+    else:
+        bot.send_message(client_id, 'Спиоск избранных стихов:\n' + text)
+
+
+def remove_from_table(client_id, name, cmd):
+    table = db.table(client_id)
+    tt = table.search(where('link') == cmd)
+    tx = []
+    if tt == tx:
+        bot.send_message(client_id, 'Вы не добавляли в избранное ' + name)
+    else:
+        table.remove((query.name == name) & (query.link == cmd))
+        bot.send_message(client_id, 'Удалил из избранных ' + name)
+
+
+def remove_table_from_db(client_id):
+    db.purge_table(client_id)
+    bot.send_message(client_id, 'Все стихи удалены из избранных')
 
 
 # Выгружаем структуру страницы по тегу
@@ -106,6 +154,11 @@ def send_poem(message, url):
     poem_body = poem_body.strip()
     poem_body = pattern_sub_two.sub('\n', str(poem_body))
     poem_body = pattern_sub_three.sub('\n\n', str(poem_body))
+    cmd = url.replace(site_url, '/show_').replace('.html', '')
+    keyboard = telebot.types.InlineKeyboardMarkup()
+    callback_button = telebot.types.InlineKeyboardButton(text='Добавить в избранное',
+                                                         callback_data="add::" + poem_name + '::' + cmd)
+    keyboard.add(callback_button)
     if len(poem_body) > 4000:
         splited_text = util.split_string(poem_body, 4000)
         bot.send_message(message.chat.id, poem_name + '\n\n')
@@ -113,7 +166,15 @@ def send_poem(message, url):
             bot.send_message(message.chat.id, text)
     else:
         log(message, poem_name)
-        bot.send_message(message.chat.id, poem_name + '\n\n' + poem_body)
+        bot.send_message(message.chat.id, poem_name + '\n\n' + poem_body, reply_markup=keyboard)
+
+
+@bot.callback_query_handler(func=lambda call: True)
+def callback_inline(call):
+    if pattern_callback.match(call.data) is not None:
+        env_text = call.data.split('::')
+        print('Сохранил в таблицу: ' + str(call.message.chat.id) + ' Стих: ' + env_text[1] + ' Ссылка: ' + env_text[2])
+        add_info_to_table(call.message.chat.id, env_text[1], env_text[2])
 
 
 # Поиск стиха по тексту используя Яндекс поиск по сайту
