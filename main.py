@@ -19,9 +19,17 @@ pattern_poem_list_one = re.compile('[A-Z].*_.*.html')
 pattern_poem_list_two = re.compile('[A-Zmin].*_[0-9]*.html')
 pattern_poem_name = re.compile('[А-Яа-я].*<br/>')
 pattern_show_msg = re.compile('/show_[A-Za-z].*_[0-9]*')
-pattern_sub_one = re.compile(r'<.*?>')
+pattern_sub_one = re.compile('<[/A-Za-z0-9]*>')
 pattern_sub_two = re.compile(r'\n *')
 pattern_sub_three = re.compile('\n\n\n')
+
+site_url = "http://www.easadov.ru/"
+
+list_of_letters_ru = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К', 'Л', 'М', 'Н', 'О', 'П',
+                      'Р', 'С', 'Т', 'У', 'Х', 'Ц', 'Ч', 'Ш', 'Э', 'Ю', 'Я']
+list_of_letters_en = ['A', 'B', 'V', 'G', 'D', 'E', 'ZH', 'Z', 'I', 'K', 'L', 'M', 'N', 'O',
+                      'P', 'R', 'S', 'T', 'U', 'H', 'TZ', 'TCH', 'SH', 'AE', 'YU', 'YA']
+list_of_themes = ['Любовь', 'Война', 'Животные', 'Общая', 'Миниатюра 1', 'Миниатюра 2', 'Миниатюра 3']
 
 
 # Функция для записи в лог обращений пользователей
@@ -36,28 +44,49 @@ def log(message, answer):
     print("--------")
 
 
+def get_text_from_url(url):
+    req = requests.get(url)
+    soup = BeautifulSoup(req.text, "lxml")
+    text = soup.find_all('div', {'class': 'post'})
+    return text
+
+
+def get_random_mini_url():
+    rand = str(random.randint(1, 260))
+    url = site_url + "mini_" + rand + ".html"
+    return url
+
+
+def get_random_theme_url(theme_url):
+    text = get_text_from_url(theme_url)
+    poems_list = pattern_poem_list_one.findall(str(text))
+    rand_number = random.randint(0, len(poems_list) - 1)
+    random_poem = poems_list[rand_number]
+    random_theme_url = site_url + random_poem
+    return random_theme_url
+
+
+def get_random_all_url():
+    rand_letter_number = random.randint(1, 26)
+    rand_letter = list_of_letters_en[rand_letter_number - 1]
+    url = site_url + rand_letter + ".html"
+    text = get_text_from_url(url)
+    list_of_links = re.findall(rand_letter + '_.*.html', str(text))
+    count_items = len(list_of_links)
+    rand_poem_number = random.randint(0, count_items - 1)
+    rand_poem = list_of_links[rand_poem_number]
+    poem_url = site_url + rand_poem
+    return poem_url
+
+
 # Функция отправки стихов в зависимости от выбранной темы
-def poem_sent(message, poem_url, fnc):
-    if fnc == 'rand':
-        req = requests.get(poem_url)
-        soup_sent = BeautifulSoup(req.text, "lxml")
-        text_soup = soup_sent.find_all('div', {'class': 'post'})
-        poems_list = pattern_poem_list_one.findall(str(text_soup))
-        rand_number = random.randint(0, len(poems_list) - 1)
-        random_poem = poems_list[rand_number]
-        other_poem_url = "http://www.easadov.ru/" + random_poem
-    elif fnc == 'notrand':
-        other_poem_url = poem_url
-    else:
-        None
-    r = requests.get(other_poem_url)
-    soup_sent = BeautifulSoup(r.text, "lxml")
-    text_soup = soup_sent.find_all('div', {'class': 'post'})
-    for i in text_soup:
+def send_poem(message, url):
+    text = get_text_from_url(url)
+    for i in text:
         poem_name = i.find('h2')
         poem_body = i.find('pre')
-    poem_name = pattern_sub_one.sub('', str(poem_name)).replace('</.*>', '')
-    poem_body = pattern_sub_one.sub('', str(poem_body)).replace('</.*>', '')
+    poem_name = pattern_sub_one.sub('', str(poem_name))
+    poem_body = pattern_sub_one.sub('', str(poem_body))
     poem_body = poem_body.strip()
     poem_body = pattern_sub_two.sub('\n', str(poem_body))
     poem_body = pattern_sub_three.sub('\n\n', str(poem_body))
@@ -67,8 +96,8 @@ def poem_sent(message, poem_url, fnc):
 
 
 def search_text(text):
-    s = re.sub('[,.:;]', '', text).replace(' ', '+')
-    req = requests.get('https://yandex.ru/sitesearch?text=' + s + '&searchid=85177')
+    string = re.sub('[,.:;]', '', text).replace(' ', '+')
+    req = requests.get('https://yandex.ru/sitesearch?text=' + string + '&searchid=85177')
     soup = BeautifulSoup(req.text, "lxml")
     try:
         find_check = soup.find('div', {'class': 'b-gap g-gap-vertical g-gap-horizontal'}).text
@@ -80,18 +109,7 @@ def search_text(text):
         link = soup.find('a', {'class': 'b-serp-item__title-link'}).get('href')
         name = soup.find('a', {'class': 'b-serp-item__title-link'}).find('span').text
         text = soup.find('div', {'class': 'b-serp-item__text'}).text
-        link = link.replace('http://www.easadov.ru/', '/show_').replace('.html', '')
-        splited_link = link.split('_')
-        if splited_link[1] == 'mini':
-            if int(splited_link[2]) > 100:
-                number = int(splited_link[2]) - 100
-                letter = 'mini_II'
-                if number > 100:
-                    number -= 100
-                    letter = 'mini_III'
-                splited_link[1] = letter
-                splited_link[2] = str(number)
-            link = '_'.join(splited_link)
+        link = link.replace(site_url, '/show_').replace('.html', '')
         name = name.split(', ')
         msg = '<b>Название:</b> ' + name[len(name)-1] + '\n' + '<b>Отрывок:</b>\n' + text + '\n' + \
               '<b>Прочитать полностью:</b> ' + link
@@ -99,12 +117,11 @@ def search_text(text):
 
 
 def get_links_and_names(letter):
-    req = requests.get('http://www.easadov.ru/' + letter + '.html')
-    soup = BeautifulSoup(req.text, "lxml")
-    text = soup.find_all('div', {'class': 'post'})
+    url = site_url + letter + '.html'
+    text = get_text_from_url(url)
     list_of_poems = pattern_poem_list_two.findall(str(text))
     poem_name = pattern_poem_name.findall(str(text))
-    poem_name = pattern_sub_one.sub('', str(poem_name)).replace('</.*>', '')
+    poem_name = pattern_sub_one.sub('', str(poem_name))
     poem_name = poem_name.replace('[', '').replace(']', '').replace('\', \'', '==').replace('\'', '')
     list_of_poem_names = poem_name.split('==')
     x = 0
@@ -117,12 +134,12 @@ def get_links_and_names(letter):
 
 
 def search(message):
-    s = search_text(message.text)
-    if s == 'Искомая комбинация слов нигде не встречается':
-        bot.send_message(message.chat.id, s)
+    string = search_text(message.text)
+    if string == 'Искомая комбинация слов нигде не встречается':
+        bot.send_message(message.chat.id, string)
     else:
-        bot.send_message(message.chat.id, '<b>Вот, что я нашел:</b>\n' + s, parse_mode='HTML')
-    answer = s
+        bot.send_message(message.chat.id, '<b>Вот, что я нашел:</b>\n' + string, parse_mode='HTML')
+    answer = string
     log(message, answer)
 
 
@@ -140,66 +157,25 @@ def handle_start(message):
 # Считываем текст отправленный, пользователем и выдаем на него ответ
 @bot.message_handler(content_types=['text'])
 def handle_command(message):
-    list_of_letters_ru = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К', 'Л', 'М', 'Н', 'О', 'П',
-                          'Р', 'С', 'Т', 'У', 'Х', 'Ц', 'Ч', 'Ш', 'Э', 'Ю', 'Я']
-    list_of_letters_en = ['A', 'B', 'V', 'G', 'D', 'E', 'ZH', 'Z', 'I', 'K', 'L', 'M', 'N', 'O',
-                          'P', 'R', 'S', 'T', 'U', 'H', 'TZ', 'TCH', 'SH', 'AE', 'YU', 'YA']
-    list_of_themes = ['Любовь', 'Война', 'Животные', 'Общая', 'Миниатюра 1', 'Миниатюра 2', 'Миниатюра 3']
 
     if message.text == "Миниатюры":
-        rand = str(random.randint(1, 260))
-        url = "http://www.easadov.ru/mini_" + rand + ".html"
-        r = requests.get(url)
-        soup = BeautifulSoup(r.text, "lxml")
-        text = soup.find_all('div', {'class': 'post'})
-        for items in text:
-            name = items.find('h2')
-            body = items.find('pre')
-        name = pattern_sub_one.sub('', str(name)).replace('</.*>', '')
-        body = pattern_sub_one.sub('', str(body)).replace('</.*>', '')
-        body = body.strip()
-        body = pattern_sub_two.sub('\n', str(body))
-        answer = name
-        log(message, answer)
-        bot.send_message(message.chat.id, name + '\n\n' + body)
+        send_poem(message, get_random_mini_url())
 
     elif message.text == "Стихи":
-        rand_letter_number = random.randint(1, 26)
-        rand_letter = list_of_letters_en[rand_letter_number - 1]
-        url = "http://www.easadov.ru/" + rand_letter + ".html"
-        r = requests.get(url)
-        soup = BeautifulSoup(r.text, "lxml")
-        text = soup.find_all('div', {'class': 'post'})
-        list_of_links = re.findall(rand_letter + '_.*.html', str(text))
-        count_items = len(list_of_links)
-        rand_poem_number = random.randint(0, count_items - 1)
-        rand_poem = list_of_links[rand_poem_number]
-        poem_url = "http://www.easadov.ru/" + rand_poem
-        r = requests.get(poem_url)
-        soup = BeautifulSoup(r.text, "lxml")
-        text = soup.find_all('div', {'class': 'post'})
-        for items in text:
-            name = items.find('h2')
-            body = items.find('pre')
-        name = pattern_sub_one.sub('', str(name)).replace('</.*>', '')
-        body = pattern_sub_one.sub('', str(body)).replace('</.*>', '')
-        body = body.strip()
-        body = pattern_sub_two.sub('\n', str(body))
-        answer = name
-        log(message, answer)
-        bot.send_message(message.chat.id, name + '\n\n' + body)
+        send_poem(message, get_random_all_url())
 
     elif message.text == "О Любви":
-        poem_sent(message, "http://www.easadov.ru/love.html", 'rand')
+        send_poem(message, get_random_theme_url(site_url + 'love.html'))
 
     elif message.text == "О Войне":
-        poem_sent(message, "http://www.easadov.ru/war.html", 'rand')
+        send_poem(message, get_random_theme_url(site_url + 'war.html'))
 
     elif message.text == "О Животных":
-        poem_sent(message, "http://www.easadov.ru/animal.html", 'rand')
+        send_poem(message, get_random_theme_url(site_url + 'animal.html'))
 
     elif message.text == "На Общую Тему":
-        poem_sent(message, "http://www.easadov.ru/other.html", 'rand')
+        send_poem(message, get_random_theme_url(site_url + 'other.html'))
+
     elif message.text == "Случайные":
         user_markup_rand = telebot.types.ReplyKeyboardMarkup(True, True)
         user_markup_rand.row('Миниатюры', 'Стихи')
@@ -209,6 +185,7 @@ def handle_command(message):
         bot.send_message(message.from_user.id, "Выбирайте...", reply_markup=user_markup_rand)
         answer = "Отправил меню:Случайные"
         log(message, answer)
+
     elif message.text == "По Алфавиту":
         user_markup_alpha = telebot.types.ReplyKeyboardMarkup(True, True)
         user_markup_alpha.row('А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И')
@@ -218,6 +195,7 @@ def handle_command(message):
         bot.send_message(message.from_user.id, "Выбирайте букву", reply_markup=user_markup_alpha)
         answer = "Отправил меню:По Алфавиту"
         log(message, answer)
+
     elif message.text == "По Теме":
         user_markup_theme = telebot.types.ReplyKeyboardMarkup(True, True)
         user_markup_theme.row('Любовь', 'Война')
@@ -227,6 +205,7 @@ def handle_command(message):
         bot.send_message(message.from_user.id, "Выбирайте тему", reply_markup=user_markup_theme)
         answer = "Отправил меню:По Теме"
         log(message, answer)
+
     elif message.text == "Назад":
         user_markup_back = telebot.types.ReplyKeyboardMarkup(True, True)
         user_markup_back.row('Случайные', 'По Алфавиту')
@@ -248,8 +227,8 @@ def handle_command(message):
     elif pattern_show_msg.match(message.text) is not None:
         command = message.text.replace('/show_', '')
         try:
-            poem_link = "http://www.easadov.ru/" + command + '.html'
-            poem_sent(message, poem_link, 'notrand')
+            poem_link = site_url + command + '.html'
+            send_poem(message, poem_link)
         except IndexError:
             bot.send_message(message.chat.id, 'Ошибочная ссылка')
 
