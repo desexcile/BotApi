@@ -8,12 +8,11 @@ import random
 import re
 from MyToken import token
 from datetime import datetime
+from telebot import util
 
 bot = telebot.TeleBot(token)
-
 # Получаем инфо о боте. Таким образом мы видим, что скрипт запустился и связался с Ботом
 print(bot.get_me())
-
 # Паттерны для модуля re, используемые в коде
 pattern_poem_list_one = re.compile('[A-Z].*_.*.html')
 pattern_poem_list_two = re.compile('[A-Zmin].*_[0-9]*.html')
@@ -22,15 +21,26 @@ pattern_show_msg = re.compile('/show_[A-Za-z].*_[0-9]*')
 pattern_sub_one = re.compile('<[/A-Za-z0-9]*>')
 pattern_sub_two = re.compile(r'\n *')
 pattern_sub_three = re.compile('\n\n\n')
-
 # Ссылка на сайт, откуда грузятся стихи
 site_url = "http://www.easadov.ru/"
-
+# Списки букв для сопоставления и слов
 list_of_letters_ru = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К', 'Л', 'М', 'Н', 'О', 'П',
                       'Р', 'С', 'Т', 'У', 'Х', 'Ц', 'Ч', 'Ш', 'Э', 'Ю', 'Я']
 list_of_letters_en = ['A', 'B', 'V', 'G', 'D', 'E', 'ZH', 'Z', 'I', 'K', 'L', 'M', 'N', 'O',
                       'P', 'R', 'S', 'T', 'U', 'H', 'TZ', 'TCH', 'SH', 'AE', 'YU', 'YA']
 list_of_themes = ['Любовь', 'Война', 'Животные', 'Общая', 'Миниатюра 1', 'Миниатюра 2', 'Миниатюра 3']
+# Словари для корректных определений ссылок
+dict_of_letters = {'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ж': 'ZH', 'З': 'Z',
+                   'И': 'I', 'К': 'K', 'Л': 'L', 'М': 'M', 'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R',
+                   'С': 'S', 'Т': 'T', 'У': 'U', 'Х': 'H', 'Ц': 'TZ', 'Ч': 'TCH', 'Ш': 'SH',
+                   'Э': 'AE', 'Ю': 'YU', 'Я': 'YA'}
+dict_of_theme_links = {'Любовь': 'love',
+                       'Война': 'war',
+                       'Животные': 'animal',
+                       'Общая': 'other',
+                       'Миниатюра 1': 'mini',
+                       'Миниатюра 2': 'mini_II',
+                       'Миниатюра 3': 'mini_III'}
 
 
 # Функция для записи в лог обращений пользователей
@@ -87,6 +97,7 @@ def get_random_all_url():
 # Функция отправки стихов в зависимости от выбранной темы
 def send_poem(message, url):
     text = get_text_from_url(url)
+    poem_name, poem_body = '', ''
     for i in text:
         poem_name = i.find('h2')
         poem_body = i.find('pre')
@@ -95,9 +106,14 @@ def send_poem(message, url):
     poem_body = poem_body.strip()
     poem_body = pattern_sub_two.sub('\n', str(poem_body))
     poem_body = pattern_sub_three.sub('\n\n', str(poem_body))
-    answer = poem_name
-    log(message, answer)
-    bot.send_message(message.chat.id, poem_name + '\n\n' + poem_body)
+    if len(poem_body) > 4000:
+        splited_text = util.split_string(poem_body, 4000)
+        bot.send_message(message.chat.id, poem_name + '\n\n')
+        for text in splited_text:
+            bot.send_message(message.chat.id, text)
+    else:
+        log(message, poem_name)
+        bot.send_message(message.chat.id, poem_name + '\n\n' + poem_body)
 
 
 # Поиск стиха по тексту используя Яндекс поиск по сайту
@@ -117,8 +133,8 @@ def search_text(text):
         text = soup.find('div', {'class': 'b-serp-item__text'}).text
         link = link.replace(site_url, '/show_').replace('.html', '')
         name = name.split(', ')
-        msg = '<b>Вот, что я нашел:</b>\n' + '<b>Название:</b> ' + name[len(name)-1] + '\n' + '<b>Отрывок:</b>\n' + text + '\n' + \
-              '<b>Прочитать полностью:</b> ' + link
+        msg = '<b>Вот, что я нашел:</b>\n' + '<b>Название:</b> ' + name[len(name) - 1] + '\n' + \
+              '<b>Отрывок:</b>\n' + text + '\n' + '<b>Прочитать полностью:</b> ' + link
         return msg
 
 
@@ -135,7 +151,7 @@ def get_links_and_names(letter):
     names = ''
     for items in list_of_poem_names:
         x += 1
-        show_cmd = '/show_' + list_of_poems[x-1].replace('.html', '')
+        show_cmd = '/show_' + list_of_poems[x - 1].replace('.html', '')
         names = names + str(x) + '.' + items + ' ' + show_cmd + '\n'
     return names
 
@@ -154,8 +170,7 @@ def handle_start(message):
     user_markup.row('Случайные', 'По Алфавиту')
     user_markup.row('По Теме', 'По Фразе')
     bot.send_message(message.from_user.id, "Привет", reply_markup=user_markup)
-    answer = "Отправил главное меню"
-    log(message, answer)
+    log(message, "Отправил главное меню")
 
 
 # Считываем текст, отправленный пользователем, и выдаем на него ответ
@@ -180,8 +195,7 @@ def handle_command(message):
         user_markup_rand.row('О Животных', 'На Общую Тему')
         user_markup_rand.row('Назад')
         bot.send_message(message.from_user.id, "Выбирайте...", reply_markup=user_markup_rand)
-        answer = "Отправил меню:Случайные"
-        log(message, answer)
+        log(message, "Отправил меню:Случайные")
     elif message.text == "По Алфавиту":
         user_markup_alpha = telebot.types.ReplyKeyboardMarkup(True, True)
         user_markup_alpha.row('А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И')
@@ -189,8 +203,7 @@ def handle_command(message):
         user_markup_alpha.row('У', 'Х', 'Ц', 'Ч', 'Ш', 'Э', 'Ю', 'Я')
         user_markup_alpha.row('Назад')
         bot.send_message(message.from_user.id, "Выбирайте букву", reply_markup=user_markup_alpha)
-        answer = "Отправил меню:По Алфавиту"
-        log(message, answer)
+        log(message, "Отправил меню:По Алфавиту")
     elif message.text == "По Теме":
         user_markup_theme = telebot.types.ReplyKeyboardMarkup(True, True)
         user_markup_theme.row('Любовь', 'Война')
@@ -198,20 +211,14 @@ def handle_command(message):
         user_markup_theme.row('Миниатюра 1', 'Миниатюра 2')
         user_markup_theme.row('Миниатюра 3', 'Назад')
         bot.send_message(message.from_user.id, "Выбирайте тему", reply_markup=user_markup_theme)
-        answer = "Отправил меню:По Теме"
-        log(message, answer)
+        log(message, "Отправил меню:По Теме")
     elif message.text == "Назад":
         user_markup_back = telebot.types.ReplyKeyboardMarkup(True, True)
         user_markup_back.row('Случайные', 'По Алфавиту')
         user_markup_back.row('По Теме', 'По Фразе')
         bot.send_message(message.from_user.id, "Возвращаемся...", reply_markup=user_markup_back)
-        answer = "Отправил меню:Назад(Главное)"
-        log(message, answer)
+        log(message, "Отправил меню:Назад(Главное)")
     elif message.text in list_of_letters_ru:
-        dict_of_letters = {'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ж': 'ZH', 'З': 'Z',
-                           'И': 'I', 'К': 'K', 'Л': 'L', 'М': 'M', 'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R',
-                           'С': 'S', 'Т': 'T', 'У': 'U', 'Х': 'H', 'Ц': 'TZ', 'Ч': 'TCH', 'Ш': 'SH',
-                           'Э': 'AE', 'Ю': 'YU', 'Я': 'YA'}
         names = get_links_and_names(dict_of_letters[message.text])
         bot.send_message(message.chat.id, 'Выберите стих\n' + names)
         answer = "Отправил список стихов"
@@ -224,32 +231,24 @@ def handle_command(message):
         except IndexError:
             bot.send_message(message.chat.id, 'Ошибочная ссылка')
     elif message.text in list_of_themes:
-        dict_of_theme_links = {'Любовь': 'love',
-                               'Война': 'war',
-                               'Животные': 'animal',
-                               'Общая': 'other',
-                               'Миниатюра 1': 'mini',
-                               'Миниатюра 2': 'mini_II',
-                               'Миниатюра 3': 'mini_III'}
         names = get_links_and_names(dict_of_theme_links[message.text])
-        z = names.split('\n')
-        y = len(z)
-        if y > 40:
+        splited_names = names.split('\n')
+        names_count = len(splited_names)
+        if names_count > 40:
             bot.send_message(message.chat.id, 'Выберите стих')
             count = 0
             start = 0
             stop = 40
-            while y > 40:
+            while names_count > 40:
                 count = count + 1
-                y = y - 40
-                bot.send_message(message.chat.id, '\n'.join(z[start:stop]))
+                names_count = names_count - 40
+                bot.send_message(message.chat.id, '\n'.join(splited_names[start:stop]))
                 start = stop
                 stop += 40
-            bot.send_message(message.chat.id, '\n'.join(z[start:]))
+            bot.send_message(message.chat.id, '\n'.join(splited_names[start:]))
         else:
             bot.send_message(message.chat.id, 'Выберите стих\n' + names)
-        answer = "Отправил список стихов"
-        log(message, answer)
+        log(message, "Отправил список стихов")
     elif message.text == 'По Фразе':
         msg = bot.send_message(message.chat.id, 'Введите фразу для поиска')
         bot.register_next_step_handler(msg, search)
@@ -257,7 +256,7 @@ def handle_command(message):
         bot.send_message(message.chat.id, 'Выберите из меню')
 
 
-# Бесконечный цикл для бота
+# Цикл для пуллинга
 if __name__ == '__main__':
     while True:
         try:
