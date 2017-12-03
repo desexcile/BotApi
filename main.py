@@ -14,7 +14,7 @@ bot = telebot.TeleBot(token)
 # Получаем инфо о боте. Таким образом мы видим, что скрипт запустился и связался с Ботом
 print(bot.get_me())
 
-# Паттерны для модуля re, используемые в проекте
+# Паттерны для модуля re, используемые в коде
 pattern_poem_list_one = re.compile('[A-Z].*_.*.html')
 pattern_poem_list_two = re.compile('[A-Zmin].*_[0-9]*.html')
 pattern_poem_name = re.compile('[А-Яа-я].*<br/>')
@@ -23,6 +23,7 @@ pattern_sub_one = re.compile('<[/A-Za-z0-9]*>')
 pattern_sub_two = re.compile(r'\n *')
 pattern_sub_three = re.compile('\n\n\n')
 
+# Ссылка на сайт, откуда грузятся стихи
 site_url = "http://www.easadov.ru/"
 
 list_of_letters_ru = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'К', 'Л', 'М', 'Н', 'О', 'П',
@@ -44,6 +45,7 @@ def log(message, answer):
     print("--------")
 
 
+# Выгружаем структуру страницы по тегу
 def get_text_from_url(url):
     req = requests.get(url)
     soup = BeautifulSoup(req.text, "lxml")
@@ -51,12 +53,14 @@ def get_text_from_url(url):
     return text
 
 
+# Получаем рандомную ссылку на стих со всех страниц раздела "Миниатюры"
 def get_random_mini_url():
     rand = str(random.randint(1, 260))
     url = site_url + "mini_" + rand + ".html"
     return url
 
 
+# Получаем рандомную ссылку на стих раздела указанного в переменной
 def get_random_theme_url(theme_url):
     text = get_text_from_url(theme_url)
     poems_list = pattern_poem_list_one.findall(str(text))
@@ -66,6 +70,7 @@ def get_random_theme_url(theme_url):
     return random_theme_url
 
 
+# Получаем рандомную ссылку на стих из всех разделов и страниц
 def get_random_all_url():
     rand_letter_number = random.randint(1, 26)
     rand_letter = list_of_letters_en[rand_letter_number - 1]
@@ -95,6 +100,7 @@ def send_poem(message, url):
     bot.send_message(message.chat.id, poem_name + '\n\n' + poem_body)
 
 
+# Поиск стиха по тексту используя Яндекс поиск по сайту
 def search_text(text):
     string = re.sub('[,.:;]', '', text).replace(' ', '+')
     req = requests.get('https://yandex.ru/sitesearch?text=' + string + '&searchid=85177')
@@ -111,11 +117,12 @@ def search_text(text):
         text = soup.find('div', {'class': 'b-serp-item__text'}).text
         link = link.replace(site_url, '/show_').replace('.html', '')
         name = name.split(', ')
-        msg = '<b>Название:</b> ' + name[len(name)-1] + '\n' + '<b>Отрывок:</b>\n' + text + '\n' + \
+        msg = '<b>Вот, что я нашел:</b>\n' + '<b>Название:</b> ' + name[len(name)-1] + '\n' + '<b>Отрывок:</b>\n' + text + '\n' + \
               '<b>Прочитать полностью:</b> ' + link
         return msg
 
 
+# Получаем список стихов и ссылки на них по букве
 def get_links_and_names(letter):
     url = site_url + letter + '.html'
     text = get_text_from_url(url)
@@ -133,14 +140,11 @@ def get_links_and_names(letter):
     return names
 
 
+# Функция для вызова поиска по фразе
 def search(message):
-    string = search_text(message.text)
-    if string == 'Искомая комбинация слов нигде не встречается':
-        bot.send_message(message.chat.id, string)
-    else:
-        bot.send_message(message.chat.id, '<b>Вот, что я нашел:</b>\n' + string, parse_mode='HTML')
-    answer = string
-    log(message, answer)
+    found_text = search_text(message.text)
+    bot.send_message(message.chat.id, found_text, parse_mode='HTML')
+    log(message, found_text)
 
 
 # Считываем комманду /start и выводим на нее меню бота
@@ -154,28 +158,21 @@ def handle_start(message):
     log(message, answer)
 
 
-# Считываем текст отправленный, пользователем и выдаем на него ответ
+# Считываем текст, отправленный пользователем, и выдаем на него ответ
 @bot.message_handler(content_types=['text'])
 def handle_command(message):
-
     if message.text == "Миниатюры":
         send_poem(message, get_random_mini_url())
-
     elif message.text == "Стихи":
         send_poem(message, get_random_all_url())
-
     elif message.text == "О Любви":
         send_poem(message, get_random_theme_url(site_url + 'love.html'))
-
     elif message.text == "О Войне":
         send_poem(message, get_random_theme_url(site_url + 'war.html'))
-
     elif message.text == "О Животных":
         send_poem(message, get_random_theme_url(site_url + 'animal.html'))
-
     elif message.text == "На Общую Тему":
         send_poem(message, get_random_theme_url(site_url + 'other.html'))
-
     elif message.text == "Случайные":
         user_markup_rand = telebot.types.ReplyKeyboardMarkup(True, True)
         user_markup_rand.row('Миниатюры', 'Стихи')
@@ -185,7 +182,6 @@ def handle_command(message):
         bot.send_message(message.from_user.id, "Выбирайте...", reply_markup=user_markup_rand)
         answer = "Отправил меню:Случайные"
         log(message, answer)
-
     elif message.text == "По Алфавиту":
         user_markup_alpha = telebot.types.ReplyKeyboardMarkup(True, True)
         user_markup_alpha.row('А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И')
@@ -195,7 +191,6 @@ def handle_command(message):
         bot.send_message(message.from_user.id, "Выбирайте букву", reply_markup=user_markup_alpha)
         answer = "Отправил меню:По Алфавиту"
         log(message, answer)
-
     elif message.text == "По Теме":
         user_markup_theme = telebot.types.ReplyKeyboardMarkup(True, True)
         user_markup_theme.row('Любовь', 'Война')
@@ -205,7 +200,6 @@ def handle_command(message):
         bot.send_message(message.from_user.id, "Выбирайте тему", reply_markup=user_markup_theme)
         answer = "Отправил меню:По Теме"
         log(message, answer)
-
     elif message.text == "Назад":
         user_markup_back = telebot.types.ReplyKeyboardMarkup(True, True)
         user_markup_back.row('Случайные', 'По Алфавиту')
@@ -213,7 +207,6 @@ def handle_command(message):
         bot.send_message(message.from_user.id, "Возвращаемся...", reply_markup=user_markup_back)
         answer = "Отправил меню:Назад(Главное)"
         log(message, answer)
-
     elif message.text in list_of_letters_ru:
         dict_of_letters = {'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ж': 'ZH', 'З': 'Z',
                            'И': 'I', 'К': 'K', 'Л': 'L', 'М': 'M', 'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R',
@@ -223,7 +216,6 @@ def handle_command(message):
         bot.send_message(message.chat.id, 'Выберите стих\n' + names)
         answer = "Отправил список стихов"
         log(message, answer)
-
     elif pattern_show_msg.match(message.text) is not None:
         command = message.text.replace('/show_', '')
         try:
@@ -231,7 +223,6 @@ def handle_command(message):
             send_poem(message, poem_link)
         except IndexError:
             bot.send_message(message.chat.id, 'Ошибочная ссылка')
-
     elif message.text in list_of_themes:
         dict_of_theme_links = {'Любовь': 'love',
                                'Война': 'war',
@@ -257,13 +248,11 @@ def handle_command(message):
             bot.send_message(message.chat.id, '\n'.join(z[start:]))
         else:
             bot.send_message(message.chat.id, 'Выберите стих\n' + names)
-
         answer = "Отправил список стихов"
         log(message, answer)
     elif message.text == 'По Фразе':
         msg = bot.send_message(message.chat.id, 'Введите фразу для поиска')
         bot.register_next_step_handler(msg, search)
-
     else:
         bot.send_message(message.chat.id, 'Выберите из меню')
 
