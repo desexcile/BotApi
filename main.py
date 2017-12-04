@@ -258,6 +258,12 @@ def handle_start(message):
     log(message, "Отправил главное меню")
 
 
+@bot.message_handler(commands=['favorite'])
+def handle_favorite(message):
+    show_fav(message.chat.id)
+    log(message, "Показал избранное")
+
+
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     if PATTERN_PLUS_FAV.match(call.data) is not None:
