@@ -282,7 +282,7 @@ def callback_inline(call):
 
 # Считываем текст, отправленный пользователем, и выдаем на него ответ
 @bot.message_handler(content_types=['text'])
-def handle_commands(message):
+def handle_command(message):
     if message.text == "Миниатюры":
         send_poem(message, get_random_mini_url())
     elif message.text == "Стихи":
