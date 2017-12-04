@@ -45,6 +45,13 @@ dict_of_theme_links = {'Любовь': 'love',
                        'Миниатюра 1': 'mini',
                        'Миниатюра 2': 'mini_II',
                        'Миниатюра 3': 'mini_III'}
+
+cross_smile = u'\U0000274C'
+star_smile = u'\U00002B50'
+plus_smile = u'\U00002795'
+minus_smile = u'\U00002796'
+magnifying_smile = u'\U0001F50D'
+
 db = TinyDB('asadov_bot_db.json')
 query = Query()
 
@@ -93,7 +100,7 @@ def show_fav(client_id):
     p = 0
     text = ''
     keyboard = telebot.types.InlineKeyboardMarkup()
-    clear_button = telebot.types.InlineKeyboardButton(text=u'\U0000274C' + 'Очистить' + u'\U0000274C',
+    clear_button = telebot.types.InlineKeyboardButton(text=cross_smile + 'Очистить' + cross_smile,
                                                       callback_data="clear")
     keyboard.add(clear_button)
     for x in table:
@@ -148,8 +155,8 @@ def get_random_theme_url(theme_url):
 
 # Получаем рандомную ссылку на стих из всех разделов и страниц
 def get_random_all_url():
-    rand_letter_number = random.randint(1, 26)
-    rand_letter = list_of_letters_en[rand_letter_number - 1]
+    rand_letter_number = random.randint(0, 25)
+    rand_letter = list_of_letters_en[rand_letter_number]
     url = site_url + rand_letter + ".html"
     text = get_text_from_url(url)
     list_of_links = re.findall(rand_letter + '_.*.html', str(text))
@@ -179,22 +186,22 @@ def send_poem(message, url):
     else:
         add_msg_to_db(message.chat.id, message.message_id, poem_name, cmd)
         keyboard = telebot.types.InlineKeyboardMarkup()
-        plus_fav_button = telebot.types.InlineKeyboardButton(text=u'\U00002795' + u'\U00002B50',
+        plus_fav_button = telebot.types.InlineKeyboardButton(text=plus_smile + star_smile,
                                                              callback_data="add::" + cmd)
-        minus_fav_button = telebot.types.InlineKeyboardButton(text=u'\U00002796' + u'\U00002B50',
+        minus_fav_button = telebot.types.InlineKeyboardButton(text=minus_smile + star_smile,
                                                               callback_data="remove::" + cmd)
-        show_fav_button = telebot.types.InlineKeyboardButton(text=u'\U0001F50D' + u'\U00002B50',
+        show_fav_button = telebot.types.InlineKeyboardButton(text=magnifying_smile + star_smile,
                                                              callback_data="show")
         keyboard.add(plus_fav_button, minus_fav_button, show_fav_button)
         if len(poem_body) > 4000:
             splited_text = util.split_string(poem_body, 4000)
             count = len(splited_text)
             bot.send_message(message.chat.id, poem_name + '\n\n')
-            for text in splited_text:
-                if text == splited_text[count - 1]:
-                    bot.send_message(message.chat.id, text, reply_markup=keyboard)
+            for large_text in splited_text:
+                if large_text == splited_text[count - 1]:
+                    bot.send_message(message.chat.id, large_text, reply_markup=keyboard)
                 else:
-                    bot.send_message(message.chat.id, text)
+                    bot.send_message(message.chat.id, large_text)
         else:
             bot.send_message(message.chat.id, poem_name + '\n\n' + poem_body, reply_markup=keyboard)
         log(message, poem_name)
@@ -254,7 +261,9 @@ def handle_start(message):
     user_markup = telebot.types.ReplyKeyboardMarkup(True, True)
     user_markup.row('Случайные', 'По Алфавиту')
     user_markup.row('По Теме', 'По Фразе')
-    bot.send_message(message.from_user.id, "Привет", reply_markup=user_markup)
+    msg = 'Привет!\nБот в процессе разработки, но уже выполняет все функции. ' \
+          'Постепенно добавляю новые возможности.\nЕсли есть предложения, пиши @DesExcile'
+    bot.send_message(message.from_user.id, msg, reply_markup=user_markup)
     log(message, "Отправил главное меню")
 
 
