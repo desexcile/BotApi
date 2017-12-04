@@ -10,6 +10,7 @@ from MyToken import token
 from datetime import datetime
 from telebot import util
 from tinydb import TinyDB, Query, where
+from ast import literal_eval
 
 bot = telebot.TeleBot(token)
 # Получаем инфо о боте. Таким образом мы видим, что скрипт запустился и связался с Ботом
@@ -174,6 +175,7 @@ def send_poem(message, url):
     cmd = url.replace(site_url, '/show_').replace('.html', '')
     if len(poem_name) == 0:
         bot.send_message(message.chat.id, 'Ошибочная ссылка')
+        log(message, 'Ошибочная ссылка')
     else:
         add_msg_to_db(message.chat.id, message.message_id, poem_name, cmd)
         keyboard = telebot.types.InlineKeyboardMarkup()
@@ -194,33 +196,11 @@ def send_poem(message, url):
                 else:
                     bot.send_message(message.chat.id, text)
         else:
-            log(message, poem_name)
             bot.send_message(message.chat.id, poem_name + '\n\n' + poem_body, reply_markup=keyboard)
+        log(message, poem_name)
 
 
-@bot.callback_query_handler(func=lambda call: True)
-def callback_inline(call):
-    if PATTERN_PLUS_FAV.match(call.data) is not None:
-        poem_url = call.data.split('::')
-        try:
-            poem_name = db.search((where('id') == call.message.chat.id) & (where('link') == poem_url[1]))[0]['name']
-            add_info_to_table(call.message.chat.id, poem_name, poem_url[1])
-        except IndexError:
-            bot.send_message(call.message.chat.id, 'Не могу найти стих, запросите его еще раз')
-    if PATTERN_MINUS_FAV.match(call.data) is not None:
-        poem_url = call.data.split('::')
-        try:
-            poem_name = db.search((where('id') == call.message.chat.id) & (where('link') == poem_url[1]))[0]['name']
-            remove_from_table(call.message.chat.id, poem_name, poem_url[1])
-        except IndexError:
-            bot.send_message(call.message.chat.id, 'Не могу найти стих, запросите его еще раз')
-    if call.data == 'show':
-        show_fav(call.message.chat.id)
-    if call.data == 'clear':
-        remove_table_from_db(call.message.chat.id)
-
-
-# Поиск стиха по тексту используя Яндекс поиск по сайту
+# Поиск стиха по тексту, используя Яндекс поиск по сайту
 def search_text(text):
     string = re.sub('[,.:;]', '', text).replace(' ', '+')
     req = requests.get('https://yandex.ru/sitesearch?text=' + string + '&searchid=85177')
@@ -242,15 +222,16 @@ def search_text(text):
         return msg
 
 
-# Получаем список стихов и ссылки на них по букве
+# Получаем список стихов и ссылки на них по букве или теме
 def get_links_and_names(letter):
     url = site_url + letter + '.html'
     text = get_text_from_url(url)
     list_of_poems = pattern_poem_list_two.findall(str(text))
     poem_name = pattern_poem_name.findall(str(text))
     poem_name = pattern_sub_one.sub('', str(poem_name))
-    poem_name = poem_name.replace('[', '').replace(']', '').replace('\', \'', '==').replace('\'', '')
-    list_of_poem_names = poem_name.split('==')
+    print(poem_name)
+    list_of_poem_names = literal_eval(poem_name)
+    print(list_of_poem_names)
     x = 0
     names = ''
     for items in list_of_poem_names:
@@ -277,9 +258,31 @@ def handle_start(message):
     log(message, "Отправил главное меню")
 
 
+@bot.callback_query_handler(func=lambda call: True)
+def callback_inline(call):
+    if PATTERN_PLUS_FAV.match(call.data) is not None:
+        poem_url = call.data.split('::')
+        try:
+            poem_name = db.search((where('id') == call.message.chat.id) & (where('link') == poem_url[1]))[0]['name']
+            add_info_to_table(call.message.chat.id, poem_name, poem_url[1])
+        except IndexError:
+            bot.send_message(call.message.chat.id, 'Не могу найти стих, запросите его еще раз')
+    if PATTERN_MINUS_FAV.match(call.data) is not None:
+        poem_url = call.data.split('::')
+        try:
+            poem_name = db.search((where('id') == call.message.chat.id) & (where('link') == poem_url[1]))[0]['name']
+            remove_from_table(call.message.chat.id, poem_name, poem_url[1])
+        except IndexError:
+            bot.send_message(call.message.chat.id, 'Не могу найти стих, запросите его еще раз')
+    if call.data == 'show':
+        show_fav(call.message.chat.id)
+    if call.data == 'clear':
+        remove_table_from_db(call.message.chat.id)
+
+
 # Считываем текст, отправленный пользователем, и выдаем на него ответ
 @bot.message_handler(content_types=['text'])
-def handle_command(message):
+def handle_commands(message):
     if message.text == "Миниатюры":
         send_poem(message, get_random_mini_url())
     elif message.text == "Стихи":
