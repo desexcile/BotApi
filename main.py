@@ -22,7 +22,8 @@ pattern_show_msg = re.compile('/show_[A-Za-z].*_[0-9]*')
 pattern_sub_one = re.compile('<[/A-Za-z0-9]*>')
 pattern_sub_two = re.compile(r'\n *')
 pattern_sub_three = re.compile('\n\n\n')
-pattern_callback = re.compile('add::.*')
+PATTERN_PLUS_FAV = re.compile('add::.*')
+PATTERN_MINUS_FAV = re.compile('remove::.*')
 # Ссылка на сайт, откуда грузятся стихи
 site_url = "http://www.easadov.ru/"
 # Списки букв для сопоставления и слов
@@ -60,46 +61,62 @@ def log(message, answer):
 
 
 def create_id_table(client_id):
-    db.table(client_id)
+    db.table(str(client_id))
+
+
+def add_msg_to_db(client_id, msg, name, cmd):
+    if len(db.search(where('id') == client_id)) > 50:
+        db.remove(query.id == client_id)
+        print('Сообщения пользователя ' + str(client_id) + ' удалены.')
+    db.insert({'id': client_id, 'msg': msg, 'name': name, 'link': cmd})
+    print('Сообщение пользователя ' + str(client_id) + ' внесено в базу.')
 
 
 def add_info_to_table(client_id, name, cmd):
-    table = db.table(client_id)
+    table = db.table(str(client_id))
     tt = table.search(where('link') == cmd)
     tx = []
     if tt == tx:
         table.insert({'name': name, 'link': cmd})
-        bot.send_message(client_id, 'Добавил ' + name + ' ' + cmd)
+        added_msg = 'Добавил "' + name + '" "' + cmd + '"'
+        bot.send_message(client_id, added_msg)
+        print(added_msg + ' в таблицу: ' + str(client_id))
     else:
-        bot.send_message(client_id, 'Этот стих уже добавлен: ' + name)
+        not_added_msg = 'Этот стих уже добавлен "' + name + '" "' + cmd + '"'
+        bot.send_message(client_id, not_added_msg)
+        print(not_added_msg + ' в таблицу: ' + str(client_id))
 
 
 def show_fav(client_id):
-    table = db.table(client_id)
+    table = db.table(str(client_id))
     p = 0
     text = ''
+    keyboard = telebot.types.InlineKeyboardMarkup()
+    clear_button = telebot.types.InlineKeyboardButton(text=u'\U0000274C' + 'Очистить' + u'\U0000274C',
+                                                      callback_data="clear")
+    keyboard.add(clear_button)
     for x in table:
         p = p + 1
         text = text + str(p) + '.' + x['name'] + ' ' + x['link'] + '\n'
     if len(text) == 0:
         bot.send_message(client_id, 'Вы еще не сохраняли стихи.')
     else:
-        bot.send_message(client_id, 'Спиоск избранных стихов:\n' + text)
+        bot.send_message(client_id, 'Спиоск избранных стихов:\n' + text, reply_markup=keyboard)
 
 
 def remove_from_table(client_id, name, cmd):
-    table = db.table(client_id)
+    table = db.table(str(client_id))
     tt = table.search(where('link') == cmd)
     tx = []
     if tt == tx:
-        bot.send_message(client_id, 'Вы не добавляли в избранное ' + name)
+        bot.send_message(client_id, 'Вы не добавляли в избранное "' + name + '"')
     else:
         table.remove((query.name == name) & (query.link == cmd))
-        bot.send_message(client_id, 'Удалил из избранных ' + name)
+        bot.send_message(client_id, 'Удалил из избранных "' + name + '"')
 
 
 def remove_table_from_db(client_id):
-    db.purge_table(client_id)
+    db.purge_table(str(client_id))
     bot.send_message(client_id, 'Все стихи удалены из избранных')
 
 
@@ -155,26 +172,52 @@ def send_poem(message, url):
     poem_body = pattern_sub_two.sub('\n', str(poem_body))
     poem_body = pattern_sub_three.sub('\n\n', str(poem_body))
     cmd = url.replace(site_url, '/show_').replace('.html', '')
-    keyboard = telebot.types.InlineKeyboardMarkup()
-    callback_button = telebot.types.InlineKeyboardButton(text='Добавить в избранное',
-                                                         callback_data="add::" + poem_name + '::' + cmd)
-    keyboard.add(callback_button)
-    if len(poem_body) > 4000:
-        splited_text = util.split_string(poem_body, 4000)
-        bot.send_message(message.chat.id, poem_name + '\n\n')
-        for text in splited_text:
-            bot.send_message(message.chat.id, text)
+    if len(poem_name) == 0:
+        bot.send_message(message.chat.id, 'Ошибочная ссылка')
     else:
-        log(message, poem_name)
-        bot.send_message(message.chat.id, poem_name + '\n\n' + poem_body, reply_markup=keyboard)
+        add_msg_to_db(message.chat.id, message.message_id, poem_name, cmd)
+        keyboard = telebot.types.InlineKeyboardMarkup()
+        plus_fav_button = telebot.types.InlineKeyboardButton(text=u'\U00002795' + u'\U00002B50',
+                                                             callback_data="add::" + cmd)
+        minus_fav_button = telebot.types.InlineKeyboardButton(text=u'\U00002796' + u'\U00002B50',
+                                                              callback_data="remove::" + cmd)
+        show_fav_button = telebot.types.InlineKeyboardButton(text=u'\U0001F50D' + u'\U00002B50',
+                                                             callback_data="show")
+        keyboard.add(plus_fav_button, minus_fav_button, show_fav_button)
+        if len(poem_body) > 4000:
+            splited_text = util.split_string(poem_body, 4000)
+            count = len(splited_text)
+            bot.send_message(message.chat.id, poem_name + '\n\n')
+            for text in splited_text:
+                if text == splited_text[count - 1]:
+                    bot.send_message(message.chat.id, text, reply_markup=keyboard)
+                else:
+                    bot.send_message(message.chat.id, text)
+        else:
+            log(message, poem_name)
+            bot.send_message(message.chat.id, poem_name + '\n\n' + poem_body, reply_markup=keyboard)
 
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
-    if pattern_callback.match(call.data) is not None:
-        env_text = call.data.split('::')
-        print('Сохранил в таблицу: ' + str(call.message.chat.id) + ' Стих: ' + env_text[1] + ' Ссылка: ' + env_text[2])
-        add_info_to_table(call.message.chat.id, env_text[1], env_text[2])
+    if PATTERN_PLUS_FAV.match(call.data) is not None:
+        poem_url = call.data.split('::')
+        try:
+            poem_name = db.search((where('id') == call.message.chat.id) & (where('link') == poem_url[1]))[0]['name']
+            add_info_to_table(call.message.chat.id, poem_name, poem_url[1])
+        except IndexError:
+            bot.send_message(call.message.chat.id, 'Не могу найти стих, запросите его еще раз')
+    if PATTERN_MINUS_FAV.match(call.data) is not None:
+        poem_url = call.data.split('::')
+        try:
+            poem_name = db.search((where('id') == call.message.chat.id) & (where('link') == poem_url[1]))[0]['name']
+            remove_from_table(call.message.chat.id, poem_name, poem_url[1])
+        except IndexError:
+            bot.send_message(call.message.chat.id, 'Не могу найти стих, запросите его еще раз')
+    if call.data == 'show':
+        show_fav(call.message.chat.id)
+    if call.data == 'clear':
+        remove_table_from_db(call.message.chat.id)
 
 
 # Поиск стиха по тексту используя Яндекс поиск по сайту
