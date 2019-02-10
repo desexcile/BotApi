@@ -2,3 +2,4 @@ pyTelegramBotAPI
 BeautifulSoup4
 tinydb
 requests
+lxml
