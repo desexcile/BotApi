@@ -6,12 +6,14 @@ import requests
 from bs4 import BeautifulSoup
 import random
 import re
-from MyToken import token
+# from MyToken import token
 from datetime import datetime
 from telebot import util
 from tinydb import TinyDB, Query, where
 from ast import literal_eval
+import os
 
+token = os.environ.get('TOKEN')
 bot = telebot.TeleBot(token)
 # Получаем инфо о боте. Таким образом мы видим, что скрипт запустился и связался с Ботом
 print(bot.get_me())
