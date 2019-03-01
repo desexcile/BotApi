@@ -277,7 +277,7 @@ markup_dict = {'Назад': markup_back, 'По Теме': markup_theme, 'По �
 
 
 def send_theme_list(message, theme):
-    sql = "SELECT name, link FROM asadov WHERE theme = '{}'".format(theme)
+    sql = "SELECT name, link FROM asadov WHERE theme = '{}' ORDER BY alphabet_item_num ASC".format(theme)
     result = sql_cmd(sql)
     theme_list = ''
     for idx, name in enumerate(result):
