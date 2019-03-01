@@ -21,7 +21,7 @@ plus_smile = u'\U00002795'
 minus_smile = u'\U00002796'
 magnifying_smile = u'\U0001F50D'
 
-pattern_show_msg = re.compile('/show_[A-Za-z].*_[0-9]*')
+PATTERN_SHOW_MSG = re.compile('/show_[A-Za-z].*_[0-9]*')
 PATTERN_PLUS_FAV = re.compile('add::.*')
 PATTERN_MINUS_FAV = re.compile('remove::.*')
 
@@ -131,7 +131,7 @@ def show_fav_list_to_user(user_id):
     if fav_list:
         bot.send_message(user_id, 'Спиоск избранных стихов:\n' + fav_list, reply_markup=keyboard)
     else:
-        bot.send_message(user_id, 'Вы еще не сохраняли стихи.')
+        bot.send_message(user_id, 'Нет сохраненных стихов.')
     return fav_list
 
 
@@ -314,9 +314,9 @@ def handle_start(message):
     user_markup = telebot.types.ReplyKeyboardMarkup(True, True)
     user_markup.row('Случайные', 'По Алфавиту')
     user_markup.row('По Теме', 'По Фразе')
-    msg = 'Привет!\nЯ умею искать отправлять стихи Эдуарда Асадова. В базе 614 стихов.' \
-          'Стихи можно искать по фразе, по алфавиту, по теме или получить случайный стих.\n' \
-          'Если есть предложения, пиши @DesExcile'
+    msg = 'Привет!\nЯ умею искать и отправлять стихи Эдуарда Асадова. В базе 614 стихов. ' \
+          'Стихи можно искать по фразе, по алфавиту, по теме или получить случайный стих. ' \ 
+          'Любой стих можно добавить в избранное для быстрого доступа.'
     bot.send_message(message.from_user.id, msg, reply_markup=user_markup)
 
 
@@ -345,7 +345,7 @@ def callback_inline(call):
 
 @bot.message_handler(content_types=['text'])
 def handle_command(message):
-    if pattern_show_msg.match(message.text) is not None:
+    if PATTERN_SHOW_MSG.match(message.text) is not None:
         send_poem(message, message.text)
     elif message.text == 'По Фразе':
         msg = bot.send_message(message.chat.id, 'Введите фразу для поиска')
