@@ -1,6 +1,2 @@
 pyTelegramBotAPI
-BeautifulSoup4
-tinydb
-requests
-lxml
-dropbox
+psycopg2-binary
