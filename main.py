@@ -322,6 +322,11 @@ def handle_start(message):
     bot.send_message(message.from_user.id, msg, reply_markup=user_markup)
 
 
+@bot.message_handler(commands=['favorite'])
+def handle_favorite(message):
+    show_fav_list_to_user(str(message.chat.id))
+
+
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     if PATTERN_PLUS_FAV.match(call.data) is not None:
