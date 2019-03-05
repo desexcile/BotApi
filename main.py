@@ -311,11 +311,13 @@ def send_letter_list(message, letter):
 
 @bot.message_handler(commands=['start'])
 def handle_start(message):
+    sql = 'SELECT count(link) FROM asadov'
+    poem_count = sql_cmd(sql)
     user_markup = telebot.types.ReplyKeyboardMarkup(True, True)
     user_markup.row('Случайные', 'По Алфавиту')
     user_markup.row('По Теме', 'По Фразе')
     line1 = 'Привет!\nЯ умею искать и отправлять стихи Эдуарда Асадова.\n'
-    line2 = 'В базе 614 стихов.\n'
+    line2 = 'Стихов в базе {}.\n'.format(str(poem_count))
     line3 = 'Стихи можно искать по фразе, по алфавиту, по теме или получить случайный стих.\n'
     line4 = 'Любой стих можно добавить в избранное для быстрого доступа.'
     msg = line1+line2+line3+line4
@@ -372,6 +374,30 @@ def handle_command(message):
             send_letter_list(message, letter)
         else:
             bot.send_message(message.chat.id, 'Выберите из меню')
+            
+            
+@bot.message_handler(content_types=['document'])
+def handle_docs(message):
+    if message.chat.id == 109964287:
+        file_info = bot.get_file(message.document.file_id)
+        file = bot.download_file(file_info.file_path)
+        poem = file.decode('utf-8').split('\r\n')
+        link = poem[0]
+        item_num = int(poem[1])
+        theme = poem[2]
+        name = poem[3]
+        poem.remove(name)
+        poem.remove(link)
+        poem.remove(str(item_num))
+        poem.remove(theme)
+        body = '\n'.join(poem)
+        fav = 'x,x'
+        sql = "INSERT INTO asadov values ({0}, '{1}', '{2}', '{3}', '{4}', '{5}')".format(
+            item_num, link, name, body, theme, fav)
+        sql_cmd(sql)
+        bot.send_message(message.chat.id, 'Новый стих добавлен')
+    else:
+        bot.send_message(message.chat.id, 'Выберите из меню, я не принимаю файлы')
 
 
 if __name__ == '__main__':
