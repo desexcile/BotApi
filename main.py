@@ -312,7 +312,7 @@ def send_letter_list(message, letter):
 @bot.message_handler(commands=['start'])
 def handle_start(message):
     sql = 'SELECT count(link) FROM asadov'
-    poem_count = sql_cmd(sql)
+    poem_count = sql_cmd(sql)[0][0]
     user_markup = telebot.types.ReplyKeyboardMarkup(True, True)
     user_markup.row('Случайные', 'По Алфавиту')
     user_markup.row('По Теме', 'По Фразе')
