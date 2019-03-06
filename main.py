@@ -378,24 +378,27 @@ def handle_command(message):
             
 @bot.message_handler(content_types=['document'])
 def handle_docs(message):
-    if message.chat.id == 109964287:
-        file_info = bot.get_file(message.document.file_id)
-        file = bot.download_file(file_info.file_path)
-        poem = file.decode('utf-8').split('\r\n')
-        link = poem[0]
-        item_num = int(poem[1])
-        theme = poem[2]
-        name = poem[3]
-        poem.remove(name)
-        poem.remove(link)
-        poem.remove(str(item_num))
-        poem.remove(theme)
-        body = '\n'.join(poem)
-        fav = 'x,x'
-        sql = "INSERT INTO asadov values ({0}, '{1}', '{2}', '{3}', '{4}', '{5}')".format(
-            item_num, link, name, body, theme, fav)
-        sql_cmd(sql)
-        bot.send_message(message.chat.id, 'Новый стих добавлен')
+	if message.chat.id == 109964287:
+		try:
+			file_info = bot.get_file(message.document.file_id)
+			file = bot.download_file(file_info.file_path)
+			poem = file.decode('utf-8').split('\r\n')
+			link = poem[0]
+			item_num = int(poem[1])
+			theme = poem[2]
+			name = poem[3]
+			poem.remove(name)
+			poem.remove(link)
+			poem.remove(str(item_num))
+			poem.remove(theme)
+			body = '\n'.join(poem)
+			fav = 'x,x'
+			sql = "INSERT INTO asadov values ({0}, '{1}', '{2}', '{3}', '{4}', '{5}')".format(
+        item_num, link, name, body, theme, fav)
+			sql_cmd(sql)
+			bot.send_message(message.chat.id, 'Новый стих добавлен')
+		except Exception as e:
+			bot.send_message(message.chat.id, 'Ошибка в файле')
     else:
         bot.send_message(message.chat.id, 'Выберите из меню, я не принимаю файлы')
 
