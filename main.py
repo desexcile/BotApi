@@ -52,7 +52,7 @@ def sql_cmd(sql_param):
         with conn.cursor() as cur:
             cur.execute(sql_param)
             sql_param_cmd = sql_param.split(' ')[0]
-            if sql_param_cmd == 'UPDATE' or sql_param_cmd == 'INSERT':
+            if sql_param_cmd == 'UPDATE' or sql_param_cmd == 'INSERT' or sql_param_cmd == 'DELETE':
                 result = []
             else:
                 result = cur.fetchall()
@@ -308,6 +308,16 @@ def send_letter_list(message, letter):
         letter_list = letter_list + "{}.{} {}\n".format(idx + 1, name[0], name[1])
     bot.send_message(message.chat.id, 'Выберите стих:\n' + letter_list)
 
+    
+def del_poem_from_db(message):
+    sql = "DELETE FROM asadov WHERE link = '{}'".format(message.text)
+    try:
+        sql_cmd(sql)
+        bot.send_message(message.chat.id, 'Стих удален')
+    except Exception as error:
+        bot.send_message(message.chat.id, 'Ошибка, нет такой ссылки')
+        print(error)
+
 
 @bot.message_handler(commands=['start'])
 def handle_start(message):
@@ -327,8 +337,17 @@ def handle_start(message):
 @bot.message_handler(commands=['favorite'])
 def handle_favorite(message):
     show_fav_list_to_user(str(message.chat.id))
+    
+    
+@bot.message_handler(commands=['delete'])
+def handle_delete(message):
+    if message.chat.id == 109964287:
+        msg = bot.send_message(message.chat.id, 'Введи ссылки для удаления стиха')
+        bot.register_next_step_handler(msg, del_poem_from_db)
+    else:
+        bot.send_message(message.chat.id, 'Выберите из меню')
 
-
+        
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     if PATTERN_PLUS_FAV.match(call.data) is not None:
