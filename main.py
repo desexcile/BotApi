@@ -234,7 +234,7 @@ def send_poem(message, link):
 
 
 def markup_random(message):
-    user_markup_rand = telebot.types.ReplyKeyboardMarkup(True, True)
+    user_markup_rand = telebot.types.ReplyKeyboardMarkup(True, False)
     user_markup_rand.row('Миниатюры', 'Стихи')
     user_markup_rand.row('О Любви', 'О Войне')
     user_markup_rand.row('О Животных', 'На Общую Тему')
@@ -243,7 +243,7 @@ def markup_random(message):
 
 
 def markup_alpha(message):
-    user_markup_alpha = telebot.types.ReplyKeyboardMarkup(True, True)
+    user_markup_alpha = telebot.types.ReplyKeyboardMarkup(True, False)
     user_markup_alpha.row('А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И')
     user_markup_alpha.row('К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т')
     user_markup_alpha.row('У', 'Х', 'Ц', 'Ч', 'Ш', 'Э', 'Ю', 'Я')
