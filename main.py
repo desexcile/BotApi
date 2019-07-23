@@ -252,7 +252,7 @@ def markup_alpha(message):
 
 
 def markup_theme(message):
-    user_markup_theme = telebot.types.ReplyKeyboardMarkup(True, True)
+    user_markup_theme = telebot.types.ReplyKeyboardMarkup(True, False)
     user_markup_theme.row('Любовь', 'Война')
     user_markup_theme.row('Животные', 'Общая')
     user_markup_theme.row('Миниатюра 1', 'Миниатюра 2')
@@ -261,7 +261,7 @@ def markup_theme(message):
 
 
 def markup_back(message):
-    user_markup_back = telebot.types.ReplyKeyboardMarkup(True, True)
+    user_markup_back = telebot.types.ReplyKeyboardMarkup(True, False)
     user_markup_back.row('Случайные', 'По Алфавиту')
     user_markup_back.row('По Теме', 'По Фразе')
     bot.send_message(message.from_user.id, "Возвращаемся...", reply_markup=user_markup_back)
@@ -323,7 +323,7 @@ def del_poem_from_db(message):
 def handle_start(message):
     sql = 'SELECT count(link) FROM asadov'
     poem_count = sql_cmd(sql)[0][0]
-    user_markup = telebot.types.ReplyKeyboardMarkup(True, True)
+    user_markup = telebot.types.ReplyKeyboardMarkup(True, False)
     user_markup.row('Случайные', 'По Алфавиту')
     user_markup.row('По Теме', 'По Фразе')
     line1 = 'Привет!\nЯ умею искать и отправлять стихи Эдуарда Асадова.\n'
